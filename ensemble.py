@@ -9,7 +9,7 @@ and so real models load lazily in app startup. Module contracts:
   bystander_fn(context, speaker, text, logs)      -> dict{'behavior',...} (Phase 4, optional)
 """
 from typing import Callable, List, Optional, Dict
-from check_chat_excel import prosocial_guard, evaluate_window
+from .check_chat_excel import prosocial_guard, evaluate_window
 
 
 class Ensemble:
