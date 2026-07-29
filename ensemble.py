@@ -9,6 +9,7 @@ and so real models load lazily in app startup. Module contracts:
   bystander_fn(context, speaker, text, logs)      -> dict{'behavior',...} (Phase 4, optional)
 """
 from typing import Callable, List, Optional, Dict
+from check_chat_excel import prosocial_guard, evaluate_window
 
 
 class Ensemble:
@@ -55,40 +56,51 @@ class Ensemble:
     def analyze(self, req: dict) -> dict:
         ctx: List[dict] = req.get("context", [])
         new = req["new_message"]
+        is_def = bool(new.get("is_defense_action", False))              # NEW
         window_texts = [m["text"] for m in ctx] + [new["text"]]
 
-        # --- module scores ---
         m_score = float(self.message_scorer(new["text"]))
         c_score = float(self.context_scorer(window_texts))
         e_score = None
         if self.exclusion_scorer is not None and req.get("logs"):
             e_score = float(self.exclusion_scorer(req["logs"]))
         scores = {"message": m_score, "context": c_score, "exclusion": e_score}
-
         cb_score = self._combine(scores)
 
-        # --- type (only verbal + exclusion available today; visual is Phase-later) ---
+        # NEW: prosocial guard on the new message → fixes the comfort-message FP (Bug 1)
+        cb_score, suppressed, guard_reason = prosocial_guard(
+            new["text"], cb_score, is_defense_action=is_def)
+
         types = []
-        if max(m_score, c_score) >= self.suspect: types.append("언어적 폭력")
-        if e_score is not None and e_score >= self.suspect: types.append("배제")
+        if not suppressed and max(m_score, c_score) >= self.suspect: types.append("언어적 폭력")
+        if not suppressed and e_score is not None and e_score >= self.suspect: types.append("배제")
         cb_type = "·".join(types) if types else "비해당"
 
-        # --- gates ---
-        if cb_score >= self.confirm:
+        # NEW: per-message attribution over the window → 가해자/피해자 + targeting-aware verdict
+        items = []
+        for m in ctx + [new]:
+            a = float(self.message_scorer(m["text"]))
+            cb_m, _, _ = prosocial_guard(m["text"], a,
+                                         is_defense_action=bool(m.get("is_defense_action", False)))
+            items.append({"speaker": m["participant_code"], "text": m["text"],
+                          "cb": cb_m, "dis": None})
+        verdict = evaluate_window(items)
+        attr = verdict["attr"]
+
+        # CHANGED: full intervention now requires a high score AND a real target (fixes Bug 2)
+        if cb_score >= self.confirm and verdict["is_bullying"]:
             level, need = "confirm", True
         elif cb_score >= self.suspect:
-            level, need = "suspect", False   # chatbot asks; no auto-intervention yet
+            level, need = "suspect", False       # aggressor-facing pre-send warning, unchanged
         else:
             level, need = "none", False
 
-        # --- bystander only runs when CB is active (gated), per design ---
         bystander = None
         if level != "none" and self.bystander_fn is not None:
             ctx_turns = [(m["participant_code"], m["text"]) for m in ctx]
-            logs = req.get("logs")
             try:
                 bystander = self.bystander_fn(ctx_turns, new["participant_code"],
-                                              new["text"], logs).get("behavior")
+                                              new["text"], req.get("logs")).get("behavior")
             except Exception:
                 bystander = None
 
@@ -99,6 +111,14 @@ class Ensemble:
         return {"room_id": req.get("room_id", ""),
                 "cb_score": round(cb_score, 4), "cb_type": cb_type,
                 "intervention_level": level, "intervention_needed": need,
+                "attribution": {                                          # NEW block
+                    "is_bullying": verdict["is_bullying"],
+                    "aggressors": attr.aggressors,        # 가해자
+                    "victim": attr.victim,                # 피해자
+                    "victim_reason": attr.victim_reason,
+                    "confidence": attr.confidence,
+                    "drop_reason": verdict["drop_reason"]},
+                "suppressed": suppressed, "guard_reason": guard_reason,   # NEW
                 "bystander_behavior": bystander,
                 "module_scores": {"message": round(m_score, 4), "context": round(c_score, 4),
                                   "exclusion": (round(e_score, 4) if e_score is not None else None)},

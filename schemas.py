@@ -13,6 +13,7 @@ class Message(BaseModel):
     timestamp: Optional[str] = None
     read_by_count: Optional[int] = None            # for exclusion / 방관 signals
     response_latency_sec: Optional[float] = None    # seconds until this speaker responded
+    is_defense_action: bool = False
 
 
 class AnalyzeRequest(BaseModel):
