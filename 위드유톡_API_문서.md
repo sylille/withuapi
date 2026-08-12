@@ -1,6 +1,6 @@
 # 위드유톡 — AI 추론 서버 API 문서
 
-**버전** 0.2.0 · **최종 수정** 2026-07-29
+**버전** 0.2.0 · **최종 수정** 2026-08-12
 
 AI 추론 서버는 위드유톡에서 전송되는 메시지의 **사이버불링 가능성**, **가해자·피해자 판별**,
 **주변인 행동 유형**을 판정합니다. 앱은 이 API를 **직접 호출하지 않습니다.**
@@ -37,7 +37,7 @@ AI 추론 서버는 위드유톡에서 전송되는 메시지의 **사이버불�
 ## 1. Base URL
 
 ```
-https://frontier-lip-santa-defeat.trycloudflare.com
+https://quote-lanes-adopted-disco.trycloudflare.com 
 ```
 
 > ⚠️ **개발용 임시 URL입니다.** Cloudflare Quick Tunnel 방식이라 연구 서버에서 터널이 실행 중일 때만
