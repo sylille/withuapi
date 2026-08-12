@@ -37,7 +37,7 @@ AI 추론 서버는 위드유톡에서 전송되는 메시지의 **사이버불�
 ## 1. Base URL
 
 ```
-https://quote-lanes-adopted-disco.trycloudflare.com 
+https://blowing-wifi-autumn-ceiling.trycloudflare.com
 ```
 
 > ⚠️ **개발용 임시 URL입니다.** Cloudflare Quick Tunnel 방식이라 연구 서버에서 터널이 실행 중일 때만
